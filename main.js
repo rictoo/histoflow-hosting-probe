@@ -18,12 +18,36 @@ function inWorker(worker) {
   });
 }
 
+// Every load that arrived without the service worker in control, kept across the reloads that
+// recover from it: a first visit, or a hard reload (Ctrl+Shift+R), which bypasses service workers.
+const RECOVERIES = 'histoflow-probe-recoveries';
+const recoveries = () => JSON.parse(sessionStorage.getItem(RECOVERIES) ?? '[]');
+
 async function serviceWorkerReady() {
   if (!('serviceWorker' in navigator)) return { available: false };
   const registration = await navigator.serviceWorker.register('./sw.js');
   await navigator.serviceWorker.ready;
-  if (navigator.serviceWorker.controller === null) {
-    // The first load is not yet controlled: the headers only apply from the next one.
+  // The test is isolation, not control. A service worker claims an already-open page the moment it
+  // activates, so a page can be "controlled" while its own response arrived without the headers;
+  // only a document served through the worker is cross-origin isolated. And a hard reload
+  // (Ctrl+Shift+R) bypasses the worker entirely. Either way nothing may start: record it, reload.
+  if (!crossOriginIsolated) {
+    const earlier = recoveries();
+    // Two attempts in a row that come back unprotected mean the worker cannot help on this host.
+    if (earlier.length > 0 && Date.now() - Date.parse(earlier.at(-1).at) < 10000 && earlier.length >= 2) {
+      return { available: true, scope: registration.scope, gaveUp: true };
+    }
+    sessionStorage.setItem(
+      RECOVERIES,
+      JSON.stringify([
+        ...earlier,
+        {
+          at: new Date().toISOString(),
+          controlled: navigator.serviceWorker.controller !== null,
+          crossOriginIsolated,
+        },
+      ]),
+    );
     location.reload();
     return null;
   }
@@ -56,6 +80,8 @@ async function run() {
     host: location.host,
     mode,
     servedThroughServiceWorker: navigator.serviceWorker?.controller != null,
+    // Loads that arrived uncontrolled and reloaded themselves, oldest first, this tab only.
+    uncontrolledLoadsRecovered: recoveries(),
     page: await probe(),
     workers: {
       'URL-loaded module worker (how HistoFlow starts its workers)': await inWorker(
