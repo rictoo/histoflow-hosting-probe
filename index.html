@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval' blob:; worker-src 'self' blob:; connect-src 'self'; style-src 'self'; object-src 'none'; base-uri 'self'"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>HistoFlow hosting probe</title>
+    <link rel="stylesheet" href="./probe.css" />
+    <script type="module" src="./main.js"></script>
+  </head>
+  <body>
+    <main>
+      <h1>HistoFlow hosting probe</h1>
+      <p>
+        What this host lets the application's security policy reach. The policy is HistoFlow's
+        own (REQ-SEC-007), delivered as a <code>&lt;meta&gt;</code> tag, the only way a static host
+        without custom headers can deliver it.
+      </p>
+      <nav>
+        <a href="./?mode=plain">Plain: the meta tag only</a>
+        <a href="./?mode=sw">With a service worker adding headers</a>
+      </nav>
+      <p id="status">Running…</p>
+      <pre id="results"></pre>
+    </main>
+  </body>
+</html>
